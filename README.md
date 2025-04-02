@@ -162,3 +162,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details. 
+
+![image](https://github.com/user-attachments/assets/298f365f-99b6-48b4-b90c-61b7972c0da1)
+![image](https://github.com/user-attachments/assets/48340ac2-c908-4f09-bf39-a2bdc2b3fea3)
