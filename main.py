@@ -7,7 +7,7 @@ from pymongo import MongoClient
 import random
 import string
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import asyncio
 
 # MongoDB connection setup
@@ -50,7 +50,7 @@ def get_or_create_user(user_id):
             "balance": 0.0,
             "total_earned": 0.0,
             "total_withdrawn": 0.0,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(UTC),
             "last_transaction": None,
             "transaction_count": 0
         }
@@ -63,7 +63,8 @@ def get_or_create_user(user_id):
             "xp": 0,
             "rank": "Bronze",
             "achievements": [],
-            "last_activity": datetime.utcnow()
+            "last_activity": datetime.now(UTC),
+            "transaction_count": 0
         }
         user_profiles_collection.insert_one(profile)
     return user
@@ -75,7 +76,7 @@ def create_transaction(user_id, amount, transaction_type, status="completed"):
         "amount": amount,
         "type": transaction_type,
         "status": status,
-        "timestamp": datetime.utcnow(),
+        "timestamp": datetime.now(UTC),
         "transaction_id": ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
     }
     transactions_collection.insert_one(transaction)
@@ -89,7 +90,7 @@ def update_user_profile(user_id, amount, transaction_type):
     
     # Update XP based on transaction amount (1 XP per dollar)
     xp_gained = int(amount)
-    new_xp = profile["xp"] + xp_gained
+    new_xp = profile.get("xp", 0) + xp_gained
     
     # Level up system (1000 XP per level)
     new_level = (new_xp // 1000) + 1
@@ -107,7 +108,7 @@ def update_user_profile(user_id, amount, transaction_type):
                 "level": new_level,
                 "xp": new_xp,
                 "rank": new_rank,
-                "last_activity": datetime.utcnow()
+                "last_activity": datetime.now(UTC)
             },
             "$inc": {"transaction_count": 1}
         }
@@ -134,7 +135,7 @@ class RedeemCodeModal(Modal, title="Redeem Cashback Code"):
         recent_transactions = transactions_collection.count_documents({
             "user_id": user_id,
             "type": "code_redeem",
-            "timestamp": {"$gte": datetime.utcnow() - timedelta(minutes=1)}
+            "timestamp": {"$gte": datetime.now(UTC) - timedelta(minutes=1)}
         })
         
         if recent_transactions >= RATE_LIMIT["code_redeem"]:
@@ -162,7 +163,7 @@ class RedeemCodeModal(Modal, title="Redeem Cashback Code"):
                     "balance": reward,
                     "total_earned": reward
                 },
-                "$set": {"last_transaction": datetime.utcnow()}
+                "$set": {"last_transaction": datetime.now(UTC)}
             }
         )
         
@@ -206,7 +207,7 @@ class WithdrawModal(Modal, title="Withdraw Cashback"):
         recent_transactions = transactions_collection.count_documents({
             "user_id": user_id,
             "type": "withdrawal",
-            "timestamp": {"$gte": datetime.utcnow() - timedelta(hours=1)}
+            "timestamp": {"$gte": datetime.now(UTC) - timedelta(hours=1)}
         })
         
         if recent_transactions >= RATE_LIMIT["withdrawal"]:
@@ -247,7 +248,7 @@ class WithdrawModal(Modal, title="Withdraw Cashback"):
                     "balance": -amount,
                     "total_withdrawn": amount
                 },
-                "$set": {"last_transaction": datetime.utcnow()}
+                "$set": {"last_transaction": datetime.now(UTC)}
             }
         )
 
@@ -449,15 +450,6 @@ class CashbackPanel(View):
         await interaction.response.send_modal(
             WithdrawModal(category_name="Withdrawals", channel_name="withdrawal-requests")
         )
-
-    @discord.ui.button(label="Transaction History", style=ButtonStyle.secondary, custom_id="transactions")
-    async def transactions_button(self, interaction: Interaction, button: Button):
-        await interaction.response.send_message("Use the command `$transactions` to view your transaction history.", ephemeral=True)
-
-    @discord.ui.button(label="Profile", style=ButtonStyle.secondary, custom_id="profile")
-    async def profile_button(self, interaction: Interaction, button: Button):
-        await interaction.response.send_message("Use the command `$profile` to view your profile.", ephemeral=True)
-
 # Panel Command
 @bot.command(name="panel")
 @commands.has_role("Staff")  # Check if the user has the "Staff" role
@@ -487,7 +479,7 @@ async def view_transactions(ctx, page: int = 1):
     recent_checks = transactions_collection.count_documents({
         "user_id": user_id,
         "type": "balance_check",
-        "timestamp": {"$gte": datetime.utcnow() - timedelta(minutes=1)}
+        "timestamp": {"$gte": datetime.now(UTC) - timedelta(minutes=1)}
     })
     
     if recent_checks >= RATE_LIMIT["balance_check"]:
@@ -540,7 +532,7 @@ async def view_profile(ctx, member: discord.Member = None):
     recent_checks = transactions_collection.count_documents({
         "user_id": user_id,
         "type": "profile_check",
-        "timestamp": {"$gte": datetime.utcnow() - timedelta(minutes=1)}
+        "timestamp": {"$gte": datetime.now(UTC) - timedelta(minutes=1)}
     })
     
     if recent_checks >= RATE_LIMIT["balance_check"]:
@@ -593,7 +585,7 @@ async def generate_code(ctx, amount: float):
         "code": code,
         "amount": amount,
         "redeemed": False,
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(UTC),
         "created_by": str(ctx.author.id)
     }
     codes_collection.insert_one(code_data)
@@ -757,4 +749,4 @@ async def on_ready():
         print(f"Failed to sync commands: {e}")
 
 # Run the bot
-bot.run(os.getenv("DISCORD_TOKEN"))  # Use environment variable for security
+bot.run("Your Discord Token") 
